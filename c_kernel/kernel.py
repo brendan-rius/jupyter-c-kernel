@@ -77,3 +77,7 @@ class CKernel(Kernel):
             stream_content = {'name': 'stdout', 'text': stdout}
             self.send_response(self.iopub_socket, 'stream', stream_content)
         return {'status': 'ok', 'execution_count': self.execution_count, 'payload': [], 'user_expressions': {}}
+
+    def do_shutdown(self, restart):
+        """Cleanup the created source code files and executables when shutting down the kernel"""
+        self.cleanup_files()
