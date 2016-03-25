@@ -53,16 +53,20 @@ class CKernel(Kernel):
             source_file.flush()
             with self.new_temp_file(suffix='.out') as binary_file:
                 retcode, stdout, stderr = self.compile_with_gcc(source_file.name, binary_file.name)
-                self.log.error(retcode)
-                self.log.error(stdout)
-                self.log.error(stderr)
+                if retcode != 0:
+                    stderr += "[C kernel] GCC exited with code {}".format(retcode)
+                self.log.error("GCC return code: {}".format(retcode))
+                self.log.error("GCC stdout: {}".format(stdout))
+                self.log.error("GCC stderr: {}".format(stderr))
 
         retcode, out, err = CKernel.execute_command([binary_file.name])
+        if retcode != 0:
+            stderr += "[C kernel] Executable exited with code {}".format(retcode)
+        self.log.error("Executable retcode: {}".format(retcode))
+        self.log.error("Executable stdout: {}".format(out))
+        self.log.error("Executable stderr: {}".format(err))
         stdout += out
         stderr += err
-        self.log.error(retcode)
-        self.log.error(out)
-        self.log.error(err)
 
         if not silent:
             stream_content = {'name': 'stderr', 'text': stderr}
