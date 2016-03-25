@@ -1,6 +1,7 @@
 from ipykernel.kernelbase import Kernel
 import subprocess
 import tempfile
+import os
 
 
 class CKernel(Kernel):
@@ -8,42 +9,64 @@ class CKernel(Kernel):
     implementation_version = '1.0'
     language = 'c'
     language_version = 'C11'
-    language_info = {'name': 'c', 'mimetype': 'text/plain', 'file_extension': 'c'}
-    _banner = None
+    language_info = {'name': 'c',
+                     'mimetype': 'text/plain',
+                     'file_extension': 'c'}
+    banner = "C kernel.\n" \
+             "Uses gcc, compiles in C11, and creates source code files and executables in temporary folder.\n"
 
-    @property
-    def banner(self):
-        if self._banner is None:
-            self._banner = subprocess.check_output(['gcc', '-v']).decode('utf-8')
-        return self._banner
+    def __init__(self, *args, **kwargs):
+        super(CKernel, self).__init__(*args, **kwargs)
+        self.files = []
+
+    def cleanup_files(self):
+        """Remove all the temporary files created by the kernel"""
+        for file in self.files:
+            os.remove(file)
+
+    def new_temp_file(self, **kwargs):
+        """Create a new temp file to be deleted when the kernel shuts down"""
+        # We don't want the file to be deleted when closed, but only when the kernel stops
+        kwargs['delete'] = False
+        file = tempfile.NamedTemporaryFile(**kwargs)
+        self.files.append(file.name)
+        return file
+
+    @staticmethod
+    def execute_command(cmd):
+        """Execute a command and returns the return code, stdout and stderr"""
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = p.communicate()
+        return p.returncode, stdout, stderr
+
+    @staticmethod
+    def compile_with_gcc(source_filename, binary_filename):
+        args = ['gcc', source_filename, '-std=c11', '-o', binary_filename]
+        return CKernel.execute_command(args)
 
     def do_execute(self, code, silent, store_history=True,
                    user_expressions=None, allow_stdin=False):
-        code = code.strip()
-        if not code:
-            return {'status': 'ok',
-                    'execution_count': self.execution_count,
-                    'payload': [],
-                    'user_expressions': {}}
 
-        output = '### COMPILATION ###\n'
-        try:
-            sourcefile = tempfile.NamedTemporaryFile(suffix='.c', delete=False)
-            sourcefile.write(code)
-            sourcefile.close()
-            binaryfile = tempfile.NamedTemporaryFile(suffix='.out', delete=False)
-            binaryfile.close()
-            output += subprocess.check_output(['gcc', '-std=c11', sourcefile.name, '-o', binaryfile.name],
-                                              stderr=subprocess.STDOUT).decode('utf-8')
-        except subprocess.CalledProcessError as e:
-            print(e)
-            return {'status': 'error', 'ename': 'Compilation error', 'evalue': e.output}
+        retcode, stdout, stderr = None, '', ''
+        with self.new_temp_file(suffix='.c') as source_file:
+            source_file.write(code)
+            source_file.flush()
+            with self.new_temp_file(suffix='.out') as binary_file:
+                retcode, stdout, stderr = self.compile_with_gcc(source_file.name, binary_file.name)
+                self.log.error(retcode)
+                self.log.error(stdout)
+                self.log.error(stderr)
 
-        output += '\n### EXECUTION ###\n'
-        try:
-            output += subprocess.check_output([binaryfile.name], stderr=subprocess.STDOUT).decode('utf-8')
-        except subprocess.CalledProcessError as e:
-            output += e.output
+        retcode, out, err = CKernel.execute_command([binary_file.name])
+        stdout += out
+        stderr += err
+        self.log.error(retcode)
+        self.log.error(out)
+        self.log.error(err)
+
         if not silent:
-            stream_content = {'name': 'stdout', 'text': output}
+            stream_content = {'name': 'stderr', 'text': stderr}
             self.send_response(self.iopub_socket, 'stream', stream_content)
+            stream_content = {'name': 'stdout', 'text': stdout}
+            self.send_response(self.iopub_socket, 'stream', stream_content)
+        return {'status': 'ok', 'execution_count': self.execution_count, 'payload': [], 'user_expressions': {}}
