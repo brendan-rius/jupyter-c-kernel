@@ -13,6 +13,10 @@
 
 ## Usage
 
- * Create a new Jupyter notebook: `jupyter-notebook`
- * Change the kernel to `C`
+ * Open the example notebook: `jupyter-notebook example-notebook.ipynb`
  * Enjoy!
+
+## Example of notebook
+
+![Example of notebook](example-notebook.png?raw=true "Example of notebook")
+
