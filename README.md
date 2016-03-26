@@ -21,6 +21,7 @@
  * `docker build .`
  * `docker run -d -p 8888:8888 CONSTRUCTED_IMAGE`
  * Go to [http://localhost:8888](http://localhost:8888) (or your VM if you are using Docker Machine)
+
 ## Usage
 
  * Open the example notebook: `jupyter-notebook example-notebook.ipynb`
