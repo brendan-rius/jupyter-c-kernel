@@ -28,6 +28,7 @@ class CKernel(Kernel):
         """Create a new temp file to be deleted when the kernel shuts down"""
         # We don't want the file to be deleted when closed, but only when the kernel stops
         kwargs['delete'] = False
+        kwargs['mode'] = 'w'
         file = tempfile.NamedTemporaryFile(**kwargs)
         self.files.append(file.name)
         return file
@@ -37,7 +38,7 @@ class CKernel(Kernel):
         """Execute a command and returns the return code, stdout and stderr"""
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()
-        return p.returncode, stdout, stderr
+        return p.returncode, stdout.decode('utf-8'), stderr.decode('utf-8')
 
     @staticmethod
     def compile_with_gcc(source_filename, binary_filename):
