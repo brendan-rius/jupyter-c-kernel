@@ -4,10 +4,13 @@
 
 * gcc
 * jupyter
+* python
+* pip
 
 ## Installation
 
  * `git clone git@github.com:brendan-rius/jupyter-c-kernel.git`
+ * `pip install jupyter-c-kernel`
  * `cd jupyter-c-kernel`
  * `jupyter-kernelspec install c_kernel`
 
