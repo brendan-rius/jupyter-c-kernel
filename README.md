@@ -8,15 +8,11 @@
 
 ## Manual installation
 
-### Requirements
-
- * gcc
- * jupyter
- * python
- * pip
-
-## Installation
-
+ * Make sure you have the following requirements installed:
+  * gcc
+  * jupyter
+  * python
+  * pip
  * `git clone git@github.com:brendan-rius/jupyter-c-kernel.git`
  * `pip install jupyter-c-kernel`
  * `cd jupyter-c-kernel`
