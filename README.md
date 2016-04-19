@@ -17,11 +17,7 @@
  * `pip install jupyter-c-kernel`
  * `cd jupyter-c-kernel`
  * `jupyter-kernelspec install c_spec/`
-
-## Usage
-
- * Open the example notebook: `jupyter-notebook example-notebook.ipynb`
- * Enjoy!
+ * `jupyter-notebook`. Enjoy!
 
 ## Example of notebook
 
