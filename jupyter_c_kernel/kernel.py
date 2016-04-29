@@ -1,7 +1,11 @@
+from threading import Thread
+
+import time
 from ipykernel.kernelbase import Kernel
 import subprocess
 import tempfile
 import os
+from Queue import Queue, Empty
 
 
 class CKernel(Kernel):
@@ -34,49 +38,86 @@ class CKernel(Kernel):
         return file
 
     @staticmethod
-    def execute_command(cmd):
+    def launch_process(cmd):
         """Execute a command and returns the return code, stdout and stderr"""
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = p.communicate()
-        return p.returncode, stdout.decode('utf-8'), stderr.decode('utf-8')
+
+        stdout_queue = Queue()
+        stdout_thread = Thread(target=CKernel.enqueue_output, args=(p.stdout, stdout_queue))
+        stdout_thread.daemon = True
+        stdout_thread.start()
+
+        stderr_queue = Queue()
+        stderr_thread = Thread(target=CKernel.enqueue_output, args=(p.stderr, stderr_queue))
+        stderr_thread.daemon = True
+        stderr_thread.start()
+
+        return p, stdout_queue, stderr_queue
 
     @staticmethod
     def compile_with_gcc(source_filename, binary_filename):
         args = ['gcc', source_filename, '-std=c11', '-o', binary_filename]
-        return CKernel.execute_command(args)
+        return CKernel.launch_process(args)
+
+    @staticmethod
+    def enqueue_output(out, queue):
+        for line in iter(out.readline, b''):
+            queue.put(line)
+        out.close()
 
     def do_execute(self, code, silent, store_history=True,
                    user_expressions=None, allow_stdin=False):
-
-        retcode, stdout, stderr = None, '', ''
+        a = raw_input()
         with self.new_temp_file(suffix='.c') as source_file:
             source_file.write(code)
             source_file.flush()
             with self.new_temp_file(suffix='.out') as binary_file:
-                retcode, stdout, stderr = self.compile_with_gcc(source_file.name, binary_file.name)
-                if retcode != 0:
-                    stderr += "[C kernel] GCC exited with code {}, the executable will not be executed".format(retcode)
-                self.log.info("GCC return code: {}".format(retcode))
-                self.log.info("GCC stdout: {}".format(stdout))
-                self.log.info("GCC stderr: {}".format(stderr))
+                p, stdout_queue, stderr_queue = self.compile_with_gcc(source_file.name, binary_file.name)
+                while p.poll() is None:
+                    self.log.error("Waiting for compilation to end")
+                    try:
+                        stdout = stdout_queue.get_nowait()
+                    except Empty:
+                        self.log.error("stdout empty")
+                    else:
+                        self.log.error("stdout contains: {}".format(stdout))
+                        self.send_response(self.iopub_socket, 'stream', {'name': 'stdout', 'text': stdout})
+                    try:
+                        stderr = stderr_queue.get_nowait()
+                    except Empty:
+                        self.log.error("stderr empty")
+                    else:
+                        self.log.error("stderr contains: {}".format(stderr))
+                        self.send_response(self.iopub_socket, 'stream', {'name': 'stderr', 'text': stderr})
 
-        if retcode == 0:  # If the compilation succeeded
-            retcode, out, err = CKernel.execute_command([binary_file.name])
-            if retcode != 0:
-                stderr += "[C kernel] Executable exited with code {}".format(retcode)
-            self.log.info("Executable retcode: {}".format(retcode))
-            self.log.info("Executable stdout: {}".format(out))
-            self.log.info("Executable stderr: {}".format(err))
-            stdout += out
-            stderr += err
-        else:
-            self.log.info('Compilation failed, the program will not be executed')
+                if p.returncode != 0:  # Compilation failed
+                    stream_content = {'name': 'stderr',
+                                      'text': "[C kernel] GCC exited with code {}, the executable will not be executed".format(
+                                              p.returncode)}
+                    self.send_response(self.iopub_socket, 'stream', stream_content)
+                    return {'status': 'ok', 'execution_count': self.execution_count, 'payload': [],
+                            'user_expressions': {}}
 
-        if not silent:
-            stream_content = {'name': 'stderr', 'text': stderr}
-            self.send_response(self.iopub_socket, 'stream', stream_content)
-            stream_content = {'name': 'stdout', 'text': stdout}
-            self.send_response(self.iopub_socket, 'stream', stream_content)
+        p, stdout_queue, stderr_queue = CKernel.launch_process([binary_file.name])
+        while p.poll() is None:
+            self.log.error("Waiting for execution to end")
+            try:
+                stdout = stdout_queue.get_nowait()
+            except Empty:
+                self.log.error("stdout empty")
+            else:
+                self.log.error("stdout contains: {}".format(stdout))
+                self.send_response(self.iopub_socket, 'stream', {'name': 'stdout', 'text': stdout})
+            try:
+                stderr = stderr_queue.get_nowait()
+            except Empty:
+                self.log.error("stderr empty")
+            else:
+                self.log.error("stderr contains: {}".format(stderr))
+                self.send_response(self.iopub_socket, 'stream', {'name': 'stderr', 'text': stderr})
+
+        if p.returncode != 0:
+            stderr_queue += "[C kernel] Executable exited with code {}".format(p.returncode)
         return {'status': 'ok', 'execution_count': self.execution_count, 'payload': [], 'user_expressions': {}}
 
     def do_shutdown(self, restart):
