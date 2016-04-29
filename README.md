@@ -23,7 +23,7 @@
 
 ### Easy installation for Unix user:
 
- * `wget https://raw.githubusercontent.com/brendan-rius/jupyter-c-kernel/master/install.sh | sh` 
+ * `wget  -O - https://raw.githubusercontent.com/brendan-rius/jupyter-c-kernel/master/install.sh | sh` 
 
 ## Example of notebook
 
