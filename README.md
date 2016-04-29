@@ -13,11 +13,17 @@
   * jupyter
   * python
   * pip
+
+### Step-by-step:
  * `git clone git@github.com:brendan-rius/jupyter-c-kernel.git`
  * `pip install jupyter-c-kernel`
  * `cd jupyter-c-kernel`
  * `jupyter-kernelspec install c_spec/`
  * `jupyter-notebook`. Enjoy!
+
+### Easy installation for Unix user:
+
+ * `wget  -O - https://raw.githubusercontent.com/brendan-rius/jupyter-c-kernel/master/install.sh | sh` 
 
 ## Example of notebook
 
