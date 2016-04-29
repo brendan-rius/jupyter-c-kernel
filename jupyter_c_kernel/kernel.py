@@ -5,7 +5,7 @@ import os
 
 
 class CKernel(Kernel):
-    implementation = 'c_kernel'
+    implementation = 'jupyter_c_kernel'
     implementation_version = '1.0'
     language = 'c'
     language_version = 'C11'

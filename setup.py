@@ -5,5 +5,5 @@ setup(name='jupyter_c_kernel',
       description='Minimalistic C kernel for Jupyter',
       author='Brendan Rius',
       author_email='ping@brendan-rius.com',
-      packages=['c_kernel'],
-     )
+      packages=['jupyter_c_kernel'],
+      )
