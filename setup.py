@@ -6,4 +6,5 @@ setup(name='jupyter_c_kernel',
       author='Brendan Rius',
       author_email='ping@brendan-rius.com',
       packages=['jupyter_c_kernel'],
+      keywords=['jupyter', 'kernel', 'c']
       )
