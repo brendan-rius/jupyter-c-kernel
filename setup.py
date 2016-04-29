@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup
 
 setup(name='jupyter_c_kernel',
       version='1.0.0',
