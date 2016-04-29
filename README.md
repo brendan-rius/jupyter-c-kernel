@@ -22,3 +22,7 @@
 ## Example of notebook
 
 ![Example of notebook](example-notebook.png?raw=true "Example of notebook")
+
+## License
+
+[MIT](LICENSE.txt)
