@@ -17,5 +17,5 @@ echo ":: Installing python module C kernel."
 sudo -H pip install $repo_name; echo "Done. "
 echo ":: Installing kernel specification"
 cd $repo_name
-sudo jupyter kernelspec install c_spec/ ; echo "Done."
+sudo jupyter-kernelspec install c_spec/ ; echo "Done."
 echo "Completed! Installation successful. You can type jupyter-notebook and be happy"
