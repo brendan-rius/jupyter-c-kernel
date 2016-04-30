@@ -11,7 +11,7 @@
  * Make sure you have the following requirements installed:
   * gcc
   * jupyter
-  * python
+  * python 3
   * pip
 
 ### Step-by-step:

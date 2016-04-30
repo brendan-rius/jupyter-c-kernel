@@ -1,6 +1,6 @@
 {
   "argv": [
-    "python",
+    "python3",
     "-m",
     "jupyter_c_kernel",
     "-f",
