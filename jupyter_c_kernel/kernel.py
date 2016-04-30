@@ -1,11 +1,50 @@
+from queue import Queue, Empty
 from threading import Thread
 
-import time
 from ipykernel.kernelbase import Kernel
 import subprocess
 import tempfile
 import os
-from Queue import Queue, Empty
+
+
+class JupyterSubprocess(subprocess.Popen):
+    def __init__(self, cmd, write_to_stdout, write_to_stderr):
+        self._write_to_stdout = write_to_stdout
+        self._write_to_stderr = write_to_stderr
+
+        super().__init__(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        self._stdout_queue = Queue()
+        self._stdout_thread = Thread(target=JupyterSubprocess._enqueue_output, args=(self.stdout, self._stdout_queue))
+        self._stdout_thread.daemon = True
+        self._stdout_thread.start()
+
+        self._stderr_queue = Queue()
+        self._stderr_thread = Thread(target=JupyterSubprocess._enqueue_output, args=(self.stderr, self._stderr_queue))
+        self._stderr_thread.daemon = True
+        self._stderr_thread.start()
+
+    @staticmethod
+    def _enqueue_output(contents, queue):
+        for line in iter(contents.readline, b''):
+            queue.put(line)
+        contents.close()
+
+    def write_contents(self, log):
+        try:
+            stdout_contents = self._stdout_queue.get_nowait()
+        except Empty:
+            log.error("stdout empty")
+        else:
+            log.error("stdout contains: {}".format(stdout_contents))
+            self._write_to_stdout(stdout_contents)
+        try:
+            stderr_contents = self._stderr_queue.get_nowait()
+        except Empty:
+            log.error("stderr empty")
+        else:
+            log.error("stderr contains: {}".format(stderr_contents))
+            self._write_to_stderr(stderr_contents)
 
 
 class CKernel(Kernel):
@@ -37,87 +76,45 @@ class CKernel(Kernel):
         self.files.append(file.name)
         return file
 
-    @staticmethod
-    def launch_process(cmd):
-        """Execute a command and returns the return code, stdout and stderr"""
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    def _write_to_stdout(self, contents):
+        self.send_response(self.iopub_socket, 'stream', {'name': 'stdout', 'text': contents})
 
-        stdout_queue = Queue()
-        stdout_thread = Thread(target=CKernel.enqueue_output, args=(p.stdout, stdout_queue))
-        stdout_thread.daemon = True
-        stdout_thread.start()
+    def _write_to_stderr(self, contents):
+        self.send_response(self.iopub_socket, 'stream', {'name': 'stderr', 'text': contents})
 
-        stderr_queue = Queue()
-        stderr_thread = Thread(target=CKernel.enqueue_output, args=(p.stderr, stderr_queue))
-        stderr_thread.daemon = True
-        stderr_thread.start()
+    def create_jupyter_subprocess(self, cmd):
+        return JupyterSubprocess(cmd,
+                                 lambda contents: self._write_to_stdout(contents.decode()),
+                                 lambda contents: self._write_to_stderr(contents.decode()))
 
-        return p, stdout_queue, stderr_queue
-
-    @staticmethod
-    def compile_with_gcc(source_filename, binary_filename):
+    def compile_with_gcc(self, source_filename, binary_filename):
         args = ['gcc', source_filename, '-std=c11', '-o', binary_filename]
-        return CKernel.launch_process(args)
-
-    @staticmethod
-    def enqueue_output(out, queue):
-        for line in iter(out.readline, b''):
-            queue.put(line)
-        out.close()
+        return self.create_jupyter_subprocess(args)
 
     def do_execute(self, code, silent, store_history=True,
                    user_expressions=None, allow_stdin=False):
-        a = raw_input()
         with self.new_temp_file(suffix='.c') as source_file:
             source_file.write(code)
             source_file.flush()
             with self.new_temp_file(suffix='.out') as binary_file:
-                p, stdout_queue, stderr_queue = self.compile_with_gcc(source_file.name, binary_file.name)
+                p = self.compile_with_gcc(source_file.name, binary_file.name)
                 while p.poll() is None:
-                    self.log.error("Waiting for compilation to end")
-                    try:
-                        stdout = stdout_queue.get_nowait()
-                    except Empty:
-                        self.log.error("stdout empty")
-                    else:
-                        self.log.error("stdout contains: {}".format(stdout))
-                        self.send_response(self.iopub_socket, 'stream', {'name': 'stdout', 'text': stdout})
-                    try:
-                        stderr = stderr_queue.get_nowait()
-                    except Empty:
-                        self.log.error("stderr empty")
-                    else:
-                        self.log.error("stderr contains: {}".format(stderr))
-                        self.send_response(self.iopub_socket, 'stream', {'name': 'stderr', 'text': stderr})
-
+                    p.write_contents(self.log)
+                p.write_contents(self.log)
                 if p.returncode != 0:  # Compilation failed
-                    stream_content = {'name': 'stderr',
-                                      'text': "[C kernel] GCC exited with code {}, the executable will not be executed".format(
-                                              p.returncode)}
-                    self.send_response(self.iopub_socket, 'stream', stream_content)
+                    self._write_to_stderr(
+                            "[C kernel] GCC exited with code {}, the executable will not be executed".format(
+                                    p.returncode))
                     return {'status': 'ok', 'execution_count': self.execution_count, 'payload': [],
                             'user_expressions': {}}
 
-        p, stdout_queue, stderr_queue = CKernel.launch_process([binary_file.name])
+        p = self.create_jupyter_subprocess([binary_file.name])
         while p.poll() is None:
-            self.log.error("Waiting for execution to end")
-            try:
-                stdout = stdout_queue.get_nowait()
-            except Empty:
-                self.log.error("stdout empty")
-            else:
-                self.log.error("stdout contains: {}".format(stdout))
-                self.send_response(self.iopub_socket, 'stream', {'name': 'stdout', 'text': stdout})
-            try:
-                stderr = stderr_queue.get_nowait()
-            except Empty:
-                self.log.error("stderr empty")
-            else:
-                self.log.error("stderr contains: {}".format(stderr))
-                self.send_response(self.iopub_socket, 'stream', {'name': 'stderr', 'text': stderr})
+            p.write_contents(self.log)
+        p.write_contents(self.log)
 
         if p.returncode != 0:
-            stderr_queue += "[C kernel] Executable exited with code {}".format(p.returncode)
+            self._write_to_stderr("[C kernel] Executable exited with code {}".format(p.returncode))
         return {'status': 'ok', 'execution_count': self.execution_count, 'payload': [], 'user_expressions': {}}
 
     def do_shutdown(self, restart):
