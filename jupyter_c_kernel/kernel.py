@@ -30,20 +30,18 @@ class JupyterSubprocess(subprocess.Popen):
             queue.put(line)
         contents.close()
 
-    def write_contents(self, log):
+    def write_contents(self):
         try:
             stdout_contents = self._stdout_queue.get_nowait()
         except Empty:
-            log.error("stdout empty")
+            pass
         else:
-            log.error("stdout contains: {}".format(stdout_contents))
             self._write_to_stdout(stdout_contents)
         try:
             stderr_contents = self._stderr_queue.get_nowait()
         except Empty:
-            log.error("stderr empty")
+            pass
         else:
-            log.error("stderr contains: {}".format(stderr_contents))
             self._write_to_stderr(stderr_contents)
 
 
@@ -99,8 +97,8 @@ class CKernel(Kernel):
             with self.new_temp_file(suffix='.out') as binary_file:
                 p = self.compile_with_gcc(source_file.name, binary_file.name)
                 while p.poll() is None:
-                    p.write_contents(self.log)
-                p.write_contents(self.log)
+                    p.write_contents()
+                p.write_contents()
                 if p.returncode != 0:  # Compilation failed
                     self._write_to_stderr(
                             "[C kernel] GCC exited with code {}, the executable will not be executed".format(
@@ -110,8 +108,8 @@ class CKernel(Kernel):
 
         p = self.create_jupyter_subprocess([binary_file.name])
         while p.poll() is None:
-            p.write_contents(self.log)
-        p.write_contents(self.log)
+            p.write_contents()
+        p.write_contents()
 
         if p.returncode != 0:
             self._write_to_stderr("[C kernel] Executable exited with code {}".format(p.returncode))
