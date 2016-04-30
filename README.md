@@ -29,6 +29,11 @@
 
 ![Example of notebook](example-notebook.png?raw=true "Example of notebook")
 
+## Contributing
+
+Creates branches named `issue-X` where `X` is the no os the issue.
+Rebase instead of merge.
+
 ## License
 
 [MIT](LICENSE.txt)
