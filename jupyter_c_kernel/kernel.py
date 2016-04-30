@@ -12,7 +12,7 @@ class JupyterSubprocess(subprocess.Popen):
         self._write_to_stdout = write_to_stdout
         self._write_to_stderr = write_to_stderr
 
-        super().__init__(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        super().__init__(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
 
         self._stdout_queue = Queue()
         self._stdout_thread = Thread(target=JupyterSubprocess._enqueue_output, args=(self.stdout, self._stdout_queue))
@@ -26,7 +26,7 @@ class JupyterSubprocess(subprocess.Popen):
 
     @staticmethod
     def _enqueue_output(contents, queue):
-        for line in iter(contents.readline, b''):
+        for line in iter(lambda: contents.read(4096), b''):
             queue.put(line)
         contents.close()
 
@@ -63,7 +63,7 @@ class CKernel(Kernel):
         os.close(mastertemp[0])
         self.master_path = mastertemp[1]
         filepath = path.join(path.dirname(path.realpath(__file__)), '..', 'resources', 'master.c')
-        subprocess.call(['gcc', filepath, '-std=c11', '-fPIC', '-shared', '-rdynamic', '-o', self.master_path])
+        subprocess.call(['gcc', filepath, '-std=c11', '-rdynamic', '-ldl', '-o', self.master_path])
 
     def cleanup_files(self):
         """Remove all the temporary files created by the kernel"""
