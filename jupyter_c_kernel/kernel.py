@@ -5,7 +5,7 @@ from ipykernel.kernelbase import Kernel
 import subprocess
 import tempfile
 import os
-
+import os.path as path
 
 class JupyterSubprocess(subprocess.Popen):
     def __init__(self, cmd, write_to_stdout, write_to_stderr):
@@ -59,11 +59,17 @@ class CKernel(Kernel):
     def __init__(self, *args, **kwargs):
         super(CKernel, self).__init__(*args, **kwargs)
         self.files = []
+        mastertemp = tempfile.mkstemp(suffix='.out')
+        os.close(mastertemp[0])
+        self.master_path = mastertemp[1]
+        filepath = path.join(path.dirname(path.realpath(__file__)), '..', 'resources', 'master.c')
+        subprocess.call(['gcc', filepath, '-std=c11', '-fPIC', '-shared', '-rdynamic', '-o', self.master_path])
 
     def cleanup_files(self):
         """Remove all the temporary files created by the kernel"""
         for file in self.files:
             os.remove(file)
+        os.remove(self.master_path)
 
     def new_temp_file(self, **kwargs):
         """Create a new temp file to be deleted when the kernel shuts down"""
@@ -86,7 +92,7 @@ class CKernel(Kernel):
                                  lambda contents: self._write_to_stderr(contents.decode()))
 
     def compile_with_gcc(self, source_filename, binary_filename):
-        args = ['gcc', source_filename, '-std=c11', '-o', binary_filename]
+        args = ['gcc', source_filename, '-std=c11', '-fPIC', '-shared', '-rdynamic', '-o', binary_filename]
         return self.create_jupyter_subprocess(args)
 
     def do_execute(self, code, silent, store_history=True,
@@ -106,7 +112,7 @@ class CKernel(Kernel):
                     return {'status': 'ok', 'execution_count': self.execution_count, 'payload': [],
                             'user_expressions': {}}
 
-        p = self.create_jupyter_subprocess([binary_file.name])
+        p = self.create_jupyter_subprocess([self.master_path, binary_file.name])
         while p.poll() is None:
             p.write_contents()
         p.write_contents()
