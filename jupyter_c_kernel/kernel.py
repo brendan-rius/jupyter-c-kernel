@@ -7,30 +7,47 @@ import tempfile
 import os
 import os.path as path
 
-class JupyterSubprocess(subprocess.Popen):
+
+class RealTimeSubprocess(subprocess.Popen):
+    """
+    A subprocess that allows to read its stdout and stderr in real time
+    """
+
     def __init__(self, cmd, write_to_stdout, write_to_stderr):
+        """
+        :param cmd: the command to execute
+        :param write_to_stdout: a callable that will be called with chunks of data from stdout
+        :param write_to_stderr: a callable that will be called with chunks of data from stderr
+        """
         self._write_to_stdout = write_to_stdout
         self._write_to_stderr = write_to_stderr
 
         super().__init__(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
 
         self._stdout_queue = Queue()
-        self._stdout_thread = Thread(target=JupyterSubprocess._enqueue_output, args=(self.stdout, self._stdout_queue))
+        self._stdout_thread = Thread(target=RealTimeSubprocess._enqueue_output, args=(self.stdout, self._stdout_queue))
         self._stdout_thread.daemon = True
         self._stdout_thread.start()
 
         self._stderr_queue = Queue()
-        self._stderr_thread = Thread(target=JupyterSubprocess._enqueue_output, args=(self.stderr, self._stderr_queue))
+        self._stderr_thread = Thread(target=RealTimeSubprocess._enqueue_output, args=(self.stderr, self._stderr_queue))
         self._stderr_thread.daemon = True
         self._stderr_thread.start()
 
     @staticmethod
-    def _enqueue_output(contents, queue):
-        for line in iter(lambda: contents.read(4096), b''):
+    def _enqueue_output(stream, queue):
+        """
+        Add chunks of data from a stream to a queue until the stream is empty.
+        """
+        for line in iter(lambda: stream.read(4096), b''):
             queue.put(line)
-        contents.close()
+        stream.close()
 
     def write_contents(self):
+        """
+        Write the available content from stdin and stderr where specifid you the instance was created
+        :return:
+        """
         try:
             stdout_contents = self._stdout_queue.get_nowait()
         except Empty:
@@ -87,9 +104,9 @@ class CKernel(Kernel):
         self.send_response(self.iopub_socket, 'stream', {'name': 'stderr', 'text': contents})
 
     def create_jupyter_subprocess(self, cmd):
-        return JupyterSubprocess(cmd,
-                                 lambda contents: self._write_to_stdout(contents.decode()),
-                                 lambda contents: self._write_to_stderr(contents.decode()))
+        return RealTimeSubprocess(cmd,
+                                  lambda contents: self._write_to_stdout(contents.decode()),
+                                  lambda contents: self._write_to_stderr(contents.decode()))
 
     def compile_with_gcc(self, source_filename, binary_filename):
         args = ['gcc', source_filename, '-std=c11', '-fPIC', '-shared', '-rdynamic', '-o', binary_filename]
