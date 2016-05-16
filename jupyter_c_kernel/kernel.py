@@ -1,4 +1,4 @@
-from queue import Queue, Empty
+from queue import Queue
 from threading import Thread
 
 from ipykernel.kernelbase import Kernel
@@ -45,20 +45,23 @@ class RealTimeSubprocess(subprocess.Popen):
 
     def write_contents(self):
         """
-        Write the available content from stdin and stderr where specifid you the instance was created
+        Write the available content from stdin and stderr where specified when the instance was created
         :return:
         """
-        try:
-            stdout_contents = self._stdout_queue.get_nowait()
-        except Empty:
-            pass
-        else:
+
+        def read_all_from_queue(queue):
+            res = b''
+            size = queue.qsize()
+            while size != 0:
+                res += queue.get_nowait()
+                size -= 1
+            return res
+
+        stdout_contents = read_all_from_queue(self._stdout_queue)
+        if stdout_contents:
             self._write_to_stdout(stdout_contents)
-        try:
-            stderr_contents = self._stderr_queue.get_nowait()
-        except Empty:
-            pass
-        else:
+        stderr_contents = read_all_from_queue(self._stderr_queue)
+        if stderr_contents:
             self._write_to_stderr(stderr_contents)
 
 
