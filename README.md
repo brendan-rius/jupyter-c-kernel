@@ -23,7 +23,7 @@
 
 ### Easy installation for Unix user:
 
- * `wget  -O - https://raw.githubusercontent.com/brendan-rius/jupyter-c-kernel/master/install.sh | sh` 
+ * `wget  -O - https://raw.githubusercontent.com/brendan-rius/jupyter-c-kernel/master/install.sh | sh`
 
 ## Example of notebook
 
@@ -31,7 +31,7 @@
 
 ## Contributing
 
-Creates branches named `issue-X` where `X` is the no os the issue.
+Create branches named `issue-X` where `X` is the number of the issue.
 Rebase instead of merge.
 
 ## License
