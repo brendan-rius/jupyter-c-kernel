@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+build/
+dist/
+MANIFEST
+.idea/
+.ipynb_checkpoints/
+*.egg-info/
+.git
+.gitignore
