@@ -4,3 +4,5 @@ build/
 dist/
 MANIFEST
 .idea/
+.ipynb_checkpoints/
+*.egg-info/
