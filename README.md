@@ -38,7 +38,7 @@ that:
 ```bash
 git clone https://github.com/brendan-rius/jupyter-c-kernel.git
 cd jupyter-c-kernel
-docker run -v $(pwd):/jupter/jupyter_c_kernel/ -p 8888:8888 brendanrius/jupyter-c-kernel
+docker run -v $(pwd):/jupyter/jupyter_c_kernel/ -p 8888:8888 brendanrius/jupyter-c-kernel
 ```
 
 This clones the source, run the kernel, and binds the current folder (the one
