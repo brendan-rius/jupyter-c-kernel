@@ -8,14 +8,19 @@ echo "            | |     __/ |                                                 
 echo "            |_|    |___/                                                     "
 
 
+repository="https://github.com/brendan-rius/jupyter-c-kernel.git"
 repo_name="jupyter-c-kernel"
-repository=git@github.com:brendan-rius/jupyter-c-kernel.git
 
+set -x
+
+echo ":: Installing python module C kernel."
+pip install $repo_name; echo "Done. "
 echo ":: Cloning Jupyter C-kernel... "
 git clone $repository $repo_name; echo "Done. "
-echo ":: Installing python module C kernel."
-sudo -H pip install $repo_name; echo "Done. "
 echo ":: Installing kernel specification"
 cd $repo_name
-sudo jupyter-kernelspec install c_spec/ ; echo "Done."
+jupyter-kernelspec install c_spec/ ; echo "Done."
+echo ":: Removing repository"
+cd ..
+rm -rf jupyter-c-kernel/
 echo "Completed! Installation successful. You can type jupyter-notebook and be happy"
