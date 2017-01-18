@@ -7,8 +7,8 @@ echo "\____/ \__._| .__/ \__. |\__\___|_|     \____/ \_| \_/\___|_|  |_| |_|\___
 echo "            | |     __/ |                                                    "
 echo "            |_|    |___/                                                     "
 
-
-repository="https://github.com/brendan-rius/jupyter-c-kernel.git"
+tag_name="$1"
+repository="${2:-https://github.com/brendan-rius/jupyter-c-kernel.git}"
 repo_name="jupyter-c-kernel"
 
 set -x
@@ -17,6 +17,10 @@ echo ":: Installing python module C kernel."
 pip install $repo_name; echo "Done. "
 echo ":: Cloning Jupyter C-kernel... "
 git clone $repository $repo_name; echo "Done. "
+if [ ! -z "$tag_name" ]; then
+    echo ":: Using tag $tag_name"
+    git checkout "$tag_name"; echo "Done."
+fi
 echo ":: Installing kernel specification"
 cd $repo_name
 jupyter-kernelspec install c_spec/ ; echo "Done."
