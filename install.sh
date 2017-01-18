@@ -17,12 +17,12 @@ echo ":: Installing python module C kernel."
 pip install $repo_name; echo "Done. "
 echo ":: Cloning Jupyter C-kernel... "
 git clone $repository $repo_name; echo "Done. "
+cd $repo_name
 if [ ! -z "$tag_name" ]; then
     echo ":: Using tag $tag_name"
     git checkout "$tag_name"; echo "Done."
 fi
 echo ":: Installing kernel specification"
-cd $repo_name
 jupyter-kernelspec install c_spec/ ; echo "Done."
 echo ":: Removing repository"
 cd ..
