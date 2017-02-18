@@ -72,7 +72,7 @@ class CKernel(Kernel):
     language_version = 'C11'
     language_info = {'name': 'c',
                      'mimetype': 'text/plain',
-                     'file_extension': 'c'}
+                     'file_extension': '.c'}
     banner = "C kernel.\n" \
              "Uses gcc, compiles in C11, and creates source code files and executables in temporary folder.\n"
 
