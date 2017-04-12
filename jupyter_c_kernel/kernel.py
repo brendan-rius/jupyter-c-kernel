@@ -111,17 +111,36 @@ class CKernel(Kernel):
                                   lambda contents: self._write_to_stdout(contents.decode()),
                                   lambda contents: self._write_to_stderr(contents.decode()))
 
-    def compile_with_gcc(self, source_filename, binary_filename):
-        args = ['gcc', source_filename, '-std=c11', '-fPIC', '-shared', '-rdynamic', '-o', binary_filename]
+    def compile_with_gcc(self, source_filename, binary_filename, cflags=None, ldflags=None):
+        cflags = ['-std=c11', '-fPIC', '-shared', '-rdynamic'] + cflags
+        args = ['gcc', source_filename] + cflags + ['-o', binary_filename] + ldflags
         return self.create_jupyter_subprocess(args)
+
+    def _filter_magics(self, code):
+
+        magics = {'cflags': [], 'ldflags': []}
+
+        for line in code.splitlines():
+            if line.startswith('//%'):
+                key, value = line[3:].split(":", 2)
+                key = key.strip().lower()
+
+                if key in ['ldflags', 'cflags']:
+                    for flag in value.split():
+                        magics[key] += [flag]
+
+        return magics
 
     def do_execute(self, code, silent, store_history=True,
                    user_expressions=None, allow_stdin=False):
+
+        magics = self._filter_magics(code)
+
         with self.new_temp_file(suffix='.c') as source_file:
             source_file.write(code)
             source_file.flush()
             with self.new_temp_file(suffix='.out') as binary_file:
-                p = self.compile_with_gcc(source_file.name, binary_file.name)
+                p = self.compile_with_gcc(source_file.name, binary_file.name, magics['cflags'], magics['ldflags'])
                 while p.poll() is None:
                     p.write_contents()
                 p.write_contents()
