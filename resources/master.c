@@ -25,5 +25,7 @@ int main(int argc, char **argv, char **envp)
         fprintf(stderr, "%s: %s\n", argv[0], error);
         return EXIT_FAILURE;
     }
-    return usermain(argc, argv, envp);
+
+    /* Call Users main, but make master.c invisible by removing first argument */
+    return usermain(argc-1, argv+1, envp);
 }

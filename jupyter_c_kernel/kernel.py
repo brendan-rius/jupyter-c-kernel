@@ -2,6 +2,7 @@ from queue import Queue
 from threading import Thread
 
 from ipykernel.kernelbase import Kernel
+import re
 import subprocess
 import tempfile
 import os
@@ -118,7 +119,9 @@ class CKernel(Kernel):
 
     def _filter_magics(self, code):
 
-        magics = {'cflags': [], 'ldflags': []}
+        magics = {'cflags': [],
+                  'ldflags': [],
+                  'args': []}
 
         for line in code.splitlines():
             if line.startswith('//%'):
@@ -128,6 +131,10 @@ class CKernel(Kernel):
                 if key in ['ldflags', 'cflags']:
                     for flag in value.split():
                         magics[key] += [flag]
+                elif key == "args":
+                    # Split arguments respecting quotes
+                    for argument in re.findall(r'(?:[^\s,"]|"(?:\\.|[^"])*")+', value):
+                        magics['args'] += [argument.strip('"')]
 
         return magics
 
@@ -151,7 +158,7 @@ class CKernel(Kernel):
                     return {'status': 'ok', 'execution_count': self.execution_count, 'payload': [],
                             'user_expressions': {}}
 
-        p = self.create_jupyter_subprocess([self.master_path, binary_file.name])
+        p = self.create_jupyter_subprocess([self.master_path, binary_file.name] + magics['args'])
         while p.poll() is None:
             p.write_contents()
         p.write_contents()
