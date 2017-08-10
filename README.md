@@ -3,8 +3,8 @@
 ## Use with Docker (recommended)
 
  * `docker pull brendanrius/jupyter-c-kernel`
- * `docker run -d -p 8888:8888 brendanrius/jupyter-c-kernel`
- * Go to [http://localhost:8888](http://localhost:8888) (or your VM address if you are using Docker Machine)
+ * `docker run -p 8888:8888 brendanrius/jupyter-c-kernel`
+ * Copy the given URL containing the token, and browse to it.
 
 ## Manual installation
 
