@@ -8,5 +8,6 @@ setup(name='jupyter_c_kernel',
       url='https://github.com/brendanrius/jupyter-c-kernel/',
       download_url='https://github.com/brendanrius/jupyter-c-kernel/tarball/1.1.0',
       packages=['jupyter_c_kernel'],
-      keywords=['jupyter', 'kernel', 'c']
+      scripts=['jupyter_c_kernel/install_c_kernel'],
+      keywords=['jupyter', 'notebook', 'kernel', 'c']
       )

@@ -3,13 +3,13 @@ MAINTAINER Brendan Rius <ping@brendan-rius.com>
 
 USER root
 
-RUN mkdir /jupyter
-
-WORKDIR /jupyter
+WORKDIR /tmp
 
 COPY ./ jupyter_c_kernel/
-RUN pip install -e jupyter_c_kernel/
 
-RUN jupyter-kernelspec install jupyter_c_kernel/c_spec/
+RUN pip install --no-cache-dir -e jupyter_c_kernel/
+RUN cd jupyter_c_kernel && python -m jupyter_c_kernel.install_c_kernel --user
 
 WORKDIR /home/$NB_USER/
+
+USER $NB_USER

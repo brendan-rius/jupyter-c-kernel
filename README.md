@@ -16,9 +16,7 @@
 
 ### Step-by-step:
  * `pip install jupyter-c-kernel`
- * `git clone https://github.com/brendan-rius/jupyter-c-kernel.git`
- * `cd jupyter-c-kernel`
- * `jupyter-kernelspec install c_spec/`
+ * `install_c_kernel`
  * `jupyter-notebook`. Enjoy!
 
 ### Easy installation for Unix user:
