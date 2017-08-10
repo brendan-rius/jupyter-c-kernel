@@ -19,10 +19,6 @@
  * `install_c_kernel`
  * `jupyter-notebook`. Enjoy!
 
-### Easy installation for Unix user:
-
- * `wget  -O - https://raw.githubusercontent.com/brendan-rius/jupyter-c-kernel/master/install.sh | sh`
-
 ## Example of notebook
 
 ![Example of notebook](example-notebook.png?raw=true "Example of notebook")
