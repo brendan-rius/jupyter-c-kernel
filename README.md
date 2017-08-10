@@ -23,6 +23,14 @@
 
 ![Example of notebook](example-notebook.png?raw=true "Example of notebook")
 
+## Custom compilation flags
+
+You can use custom compilation flags like so:
+
+![Custom compulation flag](custom_flags.png?raw=true "Example of notebook using custom compilation flags")
+
+Here, the `-lm` flag is passed so you can use the math library.
+
 ## Contributing
 
 The docker image installs the kernel in editable mode, meaning that you can
