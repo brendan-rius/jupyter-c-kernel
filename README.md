@@ -55,11 +55,6 @@ Now, if you change the source, it will be reflected in [http://localhost:8888](h
 instantly. Do not forget to click "restart" the kernel on the page as it does
 not auto-restart.
 
-### Version control
-
-Create branches named `issue-X` where `X` is the number of the issue.
-Rebase instead of merge.
-
 ## License
 
 [MIT](LICENSE.txt)
