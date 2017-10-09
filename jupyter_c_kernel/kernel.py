@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 import os
 import os.path as path
-
+import shutil
 
 class RealTimeSubprocess(subprocess.Popen):
     """
@@ -23,7 +23,7 @@ class RealTimeSubprocess(subprocess.Popen):
         self._write_to_stdout = write_to_stdout
         self._write_to_stderr = write_to_stderr
 
-        super().__init__(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
+        super(RealTimeSubprocess, self).__init__(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
 
         self._stdout_queue = Queue()
         self._stdout_thread = Thread(target=RealTimeSubprocess._enqueue_output, args=(self.stdout, self._stdout_queue))
@@ -79,42 +79,27 @@ class CKernel(Kernel):
 
     def __init__(self, *args, **kwargs):
         super(CKernel, self).__init__(*args, **kwargs)
-        self.files = []
-        mastertemp = tempfile.mkstemp(suffix='.out')
-        os.close(mastertemp[0])
-        self.master_path = mastertemp[1]
-        filepath = path.join(path.dirname(path.realpath(__file__)), '..', 'resources', 'master.c')
-        subprocess.call(['gcc', filepath, '-std=c11', '-rdynamic', '-ldl', '-o', self.master_path])
+        self.count = 0
+        self.directory = tempfile.mkdtemp(prefix=path.dirname(path.realpath(__file__)))
 
-    def cleanup_files(self):
-        """Remove all the temporary files created by the kernel"""
-        for file in self.files:
-            os.remove(file)
-        os.remove(self.master_path)
-
-    def new_temp_file(self, **kwargs):
+    def new_file_pair(self, **kwargs):
         """Create a new temp file to be deleted when the kernel shuts down"""
         # We don't want the file to be deleted when closed, but only when the kernel stops
-        kwargs['delete'] = False
-        kwargs['mode'] = 'w'
-        file = tempfile.NamedTemporaryFile(**kwargs)
-        self.files.append(file.name)
-        return file
+        return tuple(map(lambda suf: open(path.join(self.directory, str(self.count) + suf), 'w'), ('.c', '.out')))
 
     def _write_to_stdout(self, contents):
+        if type(contents) == bytes: contents = contents.decode()
         self.send_response(self.iopub_socket, 'stream', {'name': 'stdout', 'text': contents})
 
     def _write_to_stderr(self, contents):
+        if type(contents) == bytes: contents = contents.decode()
         self.send_response(self.iopub_socket, 'stream', {'name': 'stderr', 'text': contents})
 
     def create_jupyter_subprocess(self, cmd):
-        return RealTimeSubprocess(cmd,
-                                  lambda contents: self._write_to_stdout(contents.decode()),
-                                  lambda contents: self._write_to_stderr(contents.decode()))
+        return RealTimeSubprocess(cmd, self._write_to_stdout, self._write_to_stderr)
 
     def compile_with_gcc(self, source_filename, binary_filename, cflags=None, ldflags=None):
-        cflags = ['-std=c11', '-fPIC', '-shared', '-rdynamic'] + cflags
-        args = ['gcc', source_filename] + cflags + ['-o', binary_filename] + ldflags
+        args = ['gcc', source_filename, '--std=c11'] + cflags + ['-o', binary_filename] + ldflags
         return self.create_jupyter_subprocess(args)
 
     def _filter_magics(self, code):
@@ -140,33 +125,24 @@ class CKernel(Kernel):
 
     def do_execute(self, code, silent, store_history=True,
                    user_expressions=None, allow_stdin=False):
-
         magics = self._filter_magics(code)
-
-        with self.new_temp_file(suffix='.c') as source_file:
-            source_file.write(code)
-            source_file.flush()
-            with self.new_temp_file(suffix='.out') as binary_file:
-                p = self.compile_with_gcc(source_file.name, binary_file.name, magics['cflags'], magics['ldflags'])
-                while p.poll() is None:
-                    p.write_contents()
-                p.write_contents()
-                if p.returncode != 0:  # Compilation failed
-                    self._write_to_stderr(
-                            "[C kernel] GCC exited with code {}, the executable will not be executed".format(
-                                    p.returncode))
-                    return {'status': 'ok', 'execution_count': self.execution_count, 'payload': [],
-                            'user_expressions': {}}
-
-        p = self.create_jupyter_subprocess([self.master_path, binary_file.name] + magics['args'])
-        while p.poll() is None:
-            p.write_contents()
+        source_file, binary_file = self.new_file_pair()
+        source_file.write(code)
+        source_file.close()
+        binary_file.close()
+        p = self.compile_with_gcc(source_file.name, binary_file.name, magics['cflags'], magics['ldflags'])
+        while p.poll() is None: p.write_contents()
         p.write_contents()
-
+        if p.returncode != 0:  # Compilation failed
+            self._write_to_stderr("[C kernel] GCC exited with code {}, the executable will not be executed".format(p.returncode))
+            return {'status': 'ok', 'execution_count': self.execution_count, 'payload': [], 'user_expressions': {}}
+        p = self.create_jupyter_subprocess([binary_file.name] + magics['args'])
+        while p.poll() is None: p.write_contents()
+        p.write_contents()
         if p.returncode != 0:
             self._write_to_stderr("[C kernel] Executable exited with code {}".format(p.returncode))
         return {'status': 'ok', 'execution_count': self.execution_count, 'payload': [], 'user_expressions': {}}
 
     def do_shutdown(self, restart):
         """Cleanup the created source code files and executables when shutting down the kernel"""
-        self.cleanup_files()
+        shutil.rmtree(self.directory)
