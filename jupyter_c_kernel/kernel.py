@@ -83,7 +83,7 @@ class CKernel(Kernel):
         mastertemp = tempfile.mkstemp(suffix='.out')
         os.close(mastertemp[0])
         self.master_path = mastertemp[1]
-        filepath = path.join(path.dirname(path.realpath(__file__)), '..', 'resources', 'master.c')
+        filepath = path.join(path.dirname(path.realpath(__file__)), 'resources', 'master.c')
         subprocess.call(['gcc', filepath, '-std=c11', '-rdynamic', '-ldl', '-o', self.master_path])
 
     def cleanup_files(self):
