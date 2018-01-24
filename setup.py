@@ -9,5 +9,6 @@ setup(name='jupyter_c_kernel',
       download_url='https://github.com/brendanrius/jupyter-c-kernel/tarball/1.2.1',
       packages=['jupyter_c_kernel'],
       scripts=['jupyter_c_kernel/install_c_kernel'],
-      keywords=['jupyter', 'notebook', 'kernel', 'c']
+      keywords=['jupyter', 'notebook', 'kernel', 'c'],
+      include_package_data=True
       )
