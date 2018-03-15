@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
+import argparse
 import json
 import os
 import sys
-import argparse
+from tempfile import TemporaryDirectory
 
 from jupyter_client.kernelspec import KernelSpecManager
-from IPython.utils.tempdir import TemporaryDirectory
 
 kernel_json = {
     "argv": [
@@ -28,7 +28,7 @@ def install_my_kernel_spec(user=True, prefix=None):
             json.dump(kernel_json, f, sort_keys=True)
         # TODO: Copy resources once they're specified
 
-        print('Installing IPython kernel spec')
+        print('Installing C kernel spec')
         KernelSpecManager().install_kernel_spec(td, 'c', user=user, replace=True, prefix=prefix)
 
 
