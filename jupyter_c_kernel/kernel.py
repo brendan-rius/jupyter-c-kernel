@@ -122,28 +122,40 @@ class CKernel(Kernel):
         magics = {'cflags': [],
                   'ldflags': [],
                   'args': []}
+        
+        # clean_code - code without cflags, ldflags & args
+        clean_code = ''
 
         for line in code.splitlines():
             if line.startswith('//%'):
+                clean_line = ''
                 key, value = line[3:].split(":", 2)
                 key = key.strip().lower()
-
+                
                 if key in ['ldflags', 'cflags']:
                     for flag in value.split():
                         magics[key] += [flag]
+                    code.replace(line, "")
                 elif key == "args":
                     # Split arguments respecting quotes
                     for argument in re.findall(r'(?:[^\s,"]|"(?:\\.|[^"])*")+', value):
                         magics['args'] += [argument.strip('"')]
+            else:
+                clean_line = line
+            
+            clean_code += clean_line + '\n'
 
-        return magics
+        # remove last line sign
+        clean_code = clean_code[:clean_code.rfind('\n')]
+
+        return magics, clean_code
 
     def do_execute(self, code, silent, store_history=True,
                    user_expressions=None, allow_stdin=False):
 
-        magics = self._filter_magics(code)
+        magics, code = self._filter_magics(code)
 
-        with self.new_temp_file(suffix='.c') as source_file:
+        with self.new_temp_file(suffix='.c') as source_file:  
             source_file.write(code)
             source_file.flush()
             with self.new_temp_file(suffix='.out') as binary_file:
