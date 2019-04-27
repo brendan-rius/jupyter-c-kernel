@@ -71,7 +71,7 @@ class CKernel(Kernel):
     implementation_version = '1.0'
     language = 'c'
     language_version = 'C11'
-    language_info = {'name': 'c',
+    language_info = {'name': 'text/x-csrc',
                      'mimetype': 'text/plain',
                      'file_extension': '.c'}
     banner = "C kernel.\n" \
