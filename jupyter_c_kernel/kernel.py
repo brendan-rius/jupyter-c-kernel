@@ -44,6 +44,10 @@ class RealTimeSubprocess(subprocess.Popen):
             queue.put(line)
         stream.close()
 
+    def wait_for_threads(self):
+        self._stdout_thread.join()
+        self._stderr_thread.join()
+
     def write_contents(self):
         """
         Write the available content from stdin and stderr where specified when the instance was created
@@ -153,18 +157,21 @@ class CKernel(Kernel):
                 p.write_contents()
                 if p.returncode != 0:  # Compilation failed
                     self._write_to_stderr(
-                            "[C kernel] GCC exited with code {}, the executable will not be executed".format(
-                                    p.returncode))
+                        "[C kernel] GCC exited with code {}, the executable will not be executed".format(
+                            p.returncode))
                     return {'status': 'ok', 'execution_count': self.execution_count, 'payload': [],
                             'user_expressions': {}}
 
         p = self.create_jupyter_subprocess([self.master_path, binary_file.name] + magics['args'])
         while p.poll() is None:
             p.write_contents()
+
+        p.wait_for_threads()
         p.write_contents()
 
         if p.returncode != 0:
             self._write_to_stderr("[C kernel] Executable exited with code {}".format(p.returncode))
+
         return {'status': 'ok', 'execution_count': self.execution_count, 'payload': [], 'user_expressions': {}}
 
     def do_shutdown(self, restart):
