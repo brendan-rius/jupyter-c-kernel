@@ -1,2 +1,3 @@
 include jupyter_c_kernel/resources/master.c
+include jupyter_c_kernel/resources/stdio_wrap.h
 include README.md LICENSE.txt
