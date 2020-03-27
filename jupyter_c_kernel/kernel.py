@@ -102,6 +102,9 @@ class CKernel(Kernel):
     def __init__(self, *args, **kwargs):
         super(CKernel, self).__init__(*args, **kwargs)
         self._allow_stdin = True
+        self.readOnlyFileSystem = False
+        self.wAll = True # show all warnings by default
+        self.wError = False # but keep comipiling for warnings
         self.files = []
         mastertemp = tempfile.mkstemp(suffix='.out')
         os.close(mastertemp[0])
@@ -145,6 +148,12 @@ class CKernel(Kernel):
 
     def compile_with_gcc(self, source_filename, binary_filename, cflags=None, ldflags=None):
         cflags = ['-std=c11', '-fPIC', '-shared', '-rdynamic'] + cflags
+        if self.wError:
+            cflags = cflags + ['-Werror']
+        if self.wAll:
+            cflags = cflags + ['-Wall']
+        if self.readOnlyFileSystem:
+            cflags = ['-DREAD_ONLY_FILE_SYSTEM'] + cflags
         args = ['gcc', source_filename] + cflags + ['-o', binary_filename] + ldflags
         return self.create_jupyter_subprocess(args)
 
@@ -178,8 +187,13 @@ class CKernel(Kernel):
     # check whether int main() is specified, if not add it around the code
     # also add common magics like -lm
     def _add_main(self, magics, code):
-        x = re.search("int\s+main\s*\(", code)
-        if x is None:
+        # remove comments
+        tmpCode = re.sub("//.*", "", code)
+        tmpCode = re.sub("/\*.*?\*/", "", tmpCode, flags=re.M|re.S)
+
+        x = re.search("int\s+main\s*\(", tmpCode)
+
+        if not x:
             code = self.main_head + code + self.main_foot
             magics['cflags'] += ['-lm']
 

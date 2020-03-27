@@ -3,6 +3,10 @@ MAINTAINER Xaver Klemenschits <klemenschits@iue.tuwien.ac.at>
 
 USER root
 
+# Install vim and ssh
+RUN apt-get update
+RUN apt-get install -y vim openssh-client
+
 WORKDIR /tmp
 
 COPY ./ jupyter_c_kernel/
