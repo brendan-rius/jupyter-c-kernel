@@ -24,7 +24,6 @@ int scanf_wrap(const char *format, ...) {
   /* unget chars in buffer */
   int doRequest = 1;
   long index = strlen(inputBuff) - 1;
-  // printf("Start index: %ld\n", index);
   for(; index >= 0; --index) {
     ungetc(inputBuff[index], stdin);
     /* if there already is a newline in buffer
