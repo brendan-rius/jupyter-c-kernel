@@ -72,8 +72,10 @@ class RealTimeSubprocess(subprocess.Popen):
                 if(len(contents) > 0):
                     self._write_to_stdout(contents)
                 readLine = self._read_from_stdin()
+                # need to add newline since it is not captured by frontend
+                readLine += "\n"
+                os.write(1, readLine.encode());
                 self.stdin.write(readLine.encode())
-                self.stdin.write(b"\n")
             else:
                 self._write_to_stdout(contents)
 
@@ -88,7 +90,7 @@ class CKernel(Kernel):
     language = 'c'
     language_version = 'C11'
     language_info = {'name': 'text/x-csrc',
-                     'mimetype': 'text/plain',
+                     'mimetype': 'text/x-csrc',
                      'file_extension': '.c'}
     banner = "C kernel.\n" \
              "Uses gcc, compiles in C11, and creates source code files and executables in temporary folder.\n"
@@ -188,10 +190,10 @@ class CKernel(Kernel):
     # also add common magics like -lm
     def _add_main(self, magics, code):
         # remove comments
-        tmpCode = re.sub("//.*", "", code)
-        tmpCode = re.sub("/\*.*?\*/", "", tmpCode, flags=re.M|re.S)
+        tmpCode = re.sub(r"//.*", "", code)
+        tmpCode = re.sub(r"/\*.*?\*/", "", tmpCode, flags=re.M|re.S)
 
-        x = re.search("int\s+main\s*\(", tmpCode)
+        x = re.search(r"int\s+main\s*\(", tmpCode)
 
         if not x:
             code = self.main_head + code + self.main_foot
@@ -234,6 +236,11 @@ class CKernel(Kernel):
         p = self.create_jupyter_subprocess([self.master_path, binary_file.name] + magics['args'])
         while p.poll() is None:
             p.write_contents()
+
+        # wait for threads to finish, so output is always shown
+        p._stdout_thread.join()
+        p._stderr_thread.join()
+
         p.write_contents()
 
         # now remove the files we have just created
