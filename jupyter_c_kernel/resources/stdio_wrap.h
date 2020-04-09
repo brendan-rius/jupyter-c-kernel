@@ -12,31 +12,32 @@ char inputBuff[1<<10] = "";
 void readIntoBuffer() {
   long length = strlen(inputBuff);
   char nextChar = 0;
-    while((nextChar = getchar()) != '\n'){
-      inputBuff[length++] = nextChar;
-    }
-    inputBuff[length++] = '\n';
-    inputBuff[length] = '\0';
+  while((nextChar = getchar()) != '\n' && nextChar != EOF){
+    inputBuff[length++] = nextChar;
+  }
+  inputBuff[length++] = '\n';
+  inputBuff[length] = '\0';
 }
 
 /* Define the functions to overload the old ones */
 int scanf_wrap(const char *format, ...) {
   /* unget chars in buffer */
-  int doRequest = 1;
+  char doRequest = 1;
+  char leadingNewline = 1;
   long index = strlen(inputBuff) - 1;
   for(; index >= 0; --index) {
     ungetc(inputBuff[index], stdin);
     /* if there already is a newline in buffer
       we need no input request */
     if(inputBuff[index] == '\n') {
-      doRequest = 0;
+      if(!leadingNewline){
+        doRequest = 0;
+      }
+    } else {
+      leadingNewline = 0;
     }
   }
-  /* Buffer will always be empty after scanf call
-    since there is no way to enter more than one
-    newline in the frontend */
-  inputBuff[0] = '\0';
-  // printf("doRequest: %d\n", doRequest);
+
   if(doRequest) {
     printf("<inputRequest>");
     fflush(stdout);
@@ -45,6 +46,9 @@ int scanf_wrap(const char *format, ...) {
   va_start( arglist, format );
   int result = vscanf( format, arglist );
   va_end( arglist );
+
+  /* Put the remaining input into the input buffer */
+  readIntoBuffer();
 
   return result;
 }
