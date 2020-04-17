@@ -71,7 +71,9 @@ class RealTimeSubprocess(subprocess.Popen):
                 contents = contents.replace(self.__class__.inputRequest, '')
                 if(len(contents) > 0):
                     self._write_to_stdout(contents)
-                readLine = self._read_from_stdin()
+                readLine = ""
+                while(len(readLine) == 0):
+                    readLine = self._read_from_stdin()
                 # need to add newline since it is not captured by frontend
                 readLine += "\n"
                 self.stdin.write(readLine.encode())
@@ -104,6 +106,7 @@ class CKernel(Kernel):
         super(CKernel, self).__init__(*args, **kwargs)
         self._allow_stdin = True
         self.readOnlyFileSystem = False
+        self.linkMaths = True # always link math library
         self.wAll = True # show all warnings by default
         self.wError = False # but keep comipiling for warnings
         self.files = []
@@ -148,7 +151,12 @@ class CKernel(Kernel):
                                   self._read_from_stdin)
 
     def compile_with_gcc(self, source_filename, binary_filename, cflags=None, ldflags=None):
-        cflags = ['-std=c11', '-fPIC', '-shared', '-rdynamic'] + cflags
+        # cflags = ['-std=c89', '-pedantic', '-fPIC', '-shared', '-rdynamic'] + cflags
+        # cflags = ['-std=iso9899:199409', '-pedantic', '-fPIC', '-shared', '-rdynamic'] + cflags
+        # cflags = ['-std=c99', '-pedantic', '-fPIC', '-shared', '-rdynamic'] + cflags
+        cflags = ['-std=c11', '-pedantic', '-fPIC', '-shared', '-rdynamic'] + cflags
+        if self.linkMaths:
+            cflags = cflags + ['-lm']
         if self.wError:
             cflags = cflags + ['-Werror']
         if self.wAll:
