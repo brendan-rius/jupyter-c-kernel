@@ -61,6 +61,10 @@ class RealTimeSubprocess(subprocess.Popen):
                 size -= 1
             return res
 
+        stderr_contents = read_all_from_queue(self._stderr_queue)
+        if stderr_contents:
+            self._write_to_stderr(stderr_contents.decode())
+
         stdout_contents = read_all_from_queue(self._stdout_queue)
         if stdout_contents:
             contents = stdout_contents.decode()
@@ -79,10 +83,6 @@ class RealTimeSubprocess(subprocess.Popen):
                 self.stdin.write(readLine.encode())
             else:
                 self._write_to_stdout(contents)
-
-        stderr_contents = read_all_from_queue(self._stderr_queue)
-        if stderr_contents:
-            self._write_to_stderr(stderr_contents.decode())
 
 
 class CKernel(Kernel):
@@ -152,6 +152,7 @@ class CKernel(Kernel):
 
     def compile_with_gcc(self, source_filename, binary_filename, cflags=None, ldflags=None):
         # cflags = ['-std=c89', '-pedantic', '-fPIC', '-shared', '-rdynamic'] + cflags
+        # cflags = ['-std=c99', '-Wdeclaration-after-statement', '-Wvla', '-fPIC', '-shared', '-rdynamic'] + cflags
         # cflags = ['-std=iso9899:199409', '-pedantic', '-fPIC', '-shared', '-rdynamic'] + cflags
         # cflags = ['-std=c99', '-pedantic', '-fPIC', '-shared', '-rdynamic'] + cflags
         cflags = ['-std=c11', '-pedantic', '-fPIC', '-shared', '-rdynamic'] + cflags

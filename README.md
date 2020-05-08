@@ -27,8 +27,8 @@ Works only on Linux and OS X. Windows is not supported yet. If you want to use t
 ```bash
 git clone https://github.com/XaverKlemenschits/jupyter-c-kernel.git
 cd jupyter-c-kernel
-pip install -e .
-cd jupyter_c_kernel && install_c_kernel --user
+pip install -e .  # for system install: sudo install .
+cd jupyter_c_kernel && install_c_kernel --user # for sys install: sudo install_c_kernel
 # now you can start the notebook
 jupyter notebook
 ```

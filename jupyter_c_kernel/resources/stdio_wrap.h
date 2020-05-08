@@ -60,7 +60,7 @@ char checkInputRequest() {
 /* Need to define vscanf for c89.
   TODO: This is a bit risky, since the underlying glibc does not
   have to include this if it is old. If it does not, linking will fail.
-  The only safe way is reimplementing the whole function. */
+  The better way would be readin via sscanf. */
 
 /* Read formatted input from stdin into argument list ARG.
 
