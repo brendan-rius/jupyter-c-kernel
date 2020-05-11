@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
 
 /* Figure out used C standard.
   __STDC_VERSION__ is not always defined until C99.
@@ -18,6 +20,7 @@
 #endif /* __STDC_VERSION__ */
 
 /* Need input buffer to know whether we need another input request */
+/* TODO allocate this dynamically */
 static char inputBuff[1<<10] = "";
 
 /* read remaining input into buffer so it can be used in next call */
@@ -33,60 +36,78 @@ void readIntoBuffer() {
 
 /* check whether input request is needed */
 char checkInputRequest() {
-  /* unget chars in buffer */
-  char doRequest = 1;
-  char leadingNewline = 1;
-  long index = strlen(inputBuff) - 1;
-  for(; index >= 0; --index) {
-    ungetc(inputBuff[index], stdin);
-    /* if there already is a newline in buffer
-      we need no input request */
-    if(inputBuff[index] == '\n') {
-      if(!leadingNewline){
-        doRequest = 0;
-      }
-    } else {
-      leadingNewline = 0;
-    }
-  }
-
-  return doRequest;
+  return strlen(inputBuff) <= 0;
 }
 
-/* Define the functions to overload the old ones */
-
+/* Define the input functions to overload the old ones */
 /* Wrapping of scanf depends on standard */
 #ifdef C89_SUPPORT
 /* Need to define vscanf for c89.
   TODO: This is a bit risky, since the underlying glibc does not
   have to include this if it is old. If it does not, linking will fail.
-  The better way would be readin via sscanf. */
+  The robust way would be readin via sscanf. */
 
 /* Read formatted input from stdin into argument list ARG.
 
    This function is a possible cancellation point and therefore not
    marked with __THROW.  */
-extern int vscanf (const char *__restrict __format, _G_va_list __arg)
-     __attribute__ ((__format__ (__scanf__, 1, 0))) __wur;
+   extern int vsscanf (const char *__restrict __s,
+                       const char *__restrict __format, _G_va_list __arg)
+        __THROW __attribute__ ((__format__ (__scanf__, 2, 0)));
 #endif /* C89_SUPPORT */
 
 int scanf_wrap(const char *format, ...) {
   char doRequest = checkInputRequest();
+  char *inputString = 0;
 
   if(doRequest) {
     printf("<inputRequest>");
     fflush(stdout);
+    /* read everything from stdin into buffer */
+    readIntoBuffer();
+  }
+
+  /* make substring from inputBuff */
+  {
+    const long length = strlen(inputBuff);
+    long index = 0;
+    char leadingSpace = 1;
+    for(; index < length; ++index) {
+      if(isspace(inputBuff[index])) {
+        if(!leadingSpace) {
+          break;
+        }
+      } else {
+        leadingSpace = 0;
+      }
+    }
+
+    inputString = malloc(index + 1);
+    strncpy(inputString, inputBuff, index);
+    inputString[index] = '\0';
+    /* now move inputBuff up */
+    {
+      long a = 0;
+      leadingSpace = 1;
+      /* +1 to include \0 */
+      for(; index < length + 1; ++index) {
+        if(!leadingSpace || isspace(inputBuff[index]) == 0) {
+          leadingSpace = 0;
+          inputBuff[a] = inputBuff[index];
+          ++a;
+        }
+      }
+    }
   }
 
   {
     va_list arglist;
     int result;
-    va_start( arglist, format );
-    result = vscanf( format, arglist );
-    va_end( arglist );
+    va_start(arglist, format);
+    result = vsscanf(inputString, format, arglist);
+    va_end(arglist);
 
-    /* Put the remaining input into the input buffer */
-    readIntoBuffer();
+    free(inputString);
 
     return result;
   }
@@ -101,14 +122,15 @@ int getchar_wrap(){
     printf("<inputRequest>");
     fflush(stdout);
 
-    input = getchar();
     readIntoBuffer();
-  } else {
-    int i = 1;
+  }
 
-    input = inputBuff[0];
+  input = inputBuff[0];
+  {
+    long i = 1;
+    long length = strlen(inputBuff) + 1;
     /* shift all chars one to the left */
-    for(; i < 100; ++i){
+    for(; i < length; ++i){
       inputBuff[i-1] = inputBuff[i];
       if(inputBuff[i] == '\0') {
         break;
@@ -131,6 +153,112 @@ int getchar_wrap(){
 #endif /* C89_SUPPORT */
 
 #define getchar() getchar_wrap()
+
+/* output functions to replicate terminal behaviour */
+#ifdef BUFFERED_OUTPUT
+/* buffer for all output */
+/* TODO allocate this dynamically */
+static char outputBuff[1<<10] = "";
+static char attachedOutputFlush = 0;
+
+void flush_all_output() {
+  printf("%s", outputBuff);
+  fflush(stdout);
+  outputBuff[0] = '\0';
+}
+
+/* Flush all output on exit */
+void attachOutputFlush() {
+  if(attachedOutputFlush == 0){
+    int error = atexit(flush_all_output);
+    if(error != 0) {
+      fprintf(stderr, "ERROR: Could not set exit function! Error %d\n", error);
+    }
+    attachedOutputFlush = 1;
+  }
+}
+
+/* this function is called to check whether there
+  is a '\n' in the output that should be flushed */
+void flush_until_newline() {
+  long i = 0;
+  long length = strlen(outputBuff);
+  for(; i < length; ++i) {
+    if(outputBuff[i] == '\n') {
+      char *printBuff = malloc(i+2);
+      strncpy(printBuff, outputBuff, i+1);
+      printBuff[i+1] = '\0';
+      printf("%s", printBuff);
+      free(printBuff);
+      /* now remove the printed string from the buffer
+        and start again */
+      {
+        long a = 0;
+        ++i;
+        /* +1 to include \0 */
+        for(; i < length + 1; ++a, ++i) {
+          outputBuff[a] = outputBuff[i];
+        }
+        i = 0;
+        length = strlen(outputBuff);
+      }
+    }
+  }
+}
+
+/* for printf, print all to a string.
+  Then cycle through all chars and see if \n is
+  written. If there is one, flush the output, otherwise
+  write to buffer */
+int printf_wrap(const char *format, ...) {
+  /* append output to buffer */
+  va_list arglist;
+  int result;
+  va_start( arglist, format );
+  result = vsprintf(outputBuff + strlen(outputBuff), format, arglist);
+  va_end( arglist );
+
+  /* Now flush if there is a reason to */
+  flush_until_newline();
+
+  attachOutputFlush();
+
+  return result;
+}
+
+int putchar_wrap(int c) {
+  long length = strlen(outputBuff);
+  outputBuff[length] = (char)c;
+  outputBuff[length+1] = '\0';
+  if(c == '\n') {
+    flush_until_newline();
+  }
+
+  attachOutputFlush();
+
+  return c;
+}
+
+int fflush_wrap(FILE* stream) {
+  if(stream == stdout) {
+    flush_all_output();
+  }
+  return fflush(stream);
+}
+
+int fclose_wrap(FILE* stream) {
+  if(stream == stdout) {
+    flush_all_output();
+  }
+  return fclose(stream);
+}
+
+#define printf printf_wrap
+#define putchar putchar_wrap
+#define fflush fflush_wrap
+#define fclose fclose_wrap
+
+#endif /* BUFFERED_OUTPUT */
 
 /* Replace FILE write operations for read-only systems */
 #ifdef READ_ONLY_FILE_SYSTEM

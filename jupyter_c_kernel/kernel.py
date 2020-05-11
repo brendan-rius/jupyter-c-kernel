@@ -106,6 +106,7 @@ class CKernel(Kernel):
         super(CKernel, self).__init__(*args, **kwargs)
         self._allow_stdin = True
         self.readOnlyFileSystem = False
+        self.bufferedOutput = False
         self.linkMaths = True # always link math library
         self.wAll = True # show all warnings by default
         self.wError = False # but keep comipiling for warnings
@@ -164,6 +165,8 @@ class CKernel(Kernel):
             cflags = cflags + ['-Wall']
         if self.readOnlyFileSystem:
             cflags = ['-DREAD_ONLY_FILE_SYSTEM'] + cflags
+        if self.bufferedOutput:
+            cflags = ['-DBUFFERED_OUTPUT'] + cflags
         args = ['gcc', source_filename] + cflags + ['-o', binary_filename] + ldflags
         return self.create_jupyter_subprocess(args)
 
