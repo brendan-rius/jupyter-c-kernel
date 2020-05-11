@@ -19,141 +19,6 @@
 #define C89_SUPPORT
 #endif /* __STDC_VERSION__ */
 
-/* Need input buffer to know whether we need another input request */
-/* TODO allocate this dynamically */
-static char inputBuff[1<<10] = "";
-
-/* read remaining input into buffer so it can be used in next call */
-void readIntoBuffer() {
-  long length = strlen(inputBuff);
-  char nextChar = 0;
-  while((nextChar = getchar()) != '\n' && nextChar != EOF){
-    inputBuff[length++] = nextChar;
-  }
-  inputBuff[length++] = '\n';
-  inputBuff[length] = '\0';
-}
-
-/* check whether input request is needed */
-char checkInputRequest() {
-  return strlen(inputBuff) <= 0;
-}
-
-/* Define the input functions to overload the old ones */
-/* Wrapping of scanf depends on standard */
-#ifdef C89_SUPPORT
-/* Need to define vscanf for c89.
-  TODO: This is a bit risky, since the underlying glibc does not
-  have to include this if it is old. If it does not, linking will fail.
-  The robust way would be readin via sscanf. */
-
-/* Read formatted input from stdin into argument list ARG.
-
-   This function is a possible cancellation point and therefore not
-   marked with __THROW.  */
-   extern int vsscanf (const char *__restrict __s,
-                       const char *__restrict __format, _G_va_list __arg)
-        __THROW __attribute__ ((__format__ (__scanf__, 2, 0)));
-#endif /* C89_SUPPORT */
-
-int scanf_wrap(const char *format, ...) {
-  char doRequest = checkInputRequest();
-  char *inputString = 0;
-
-  if(doRequest) {
-    printf("<inputRequest>");
-    fflush(stdout);
-    /* read everything from stdin into buffer */
-    readIntoBuffer();
-  }
-
-  /* make substring from inputBuff */
-  {
-    const long length = strlen(inputBuff);
-    long index = 0;
-    char leadingSpace = 1;
-    for(; index < length; ++index) {
-      if(isspace(inputBuff[index])) {
-        if(!leadingSpace) {
-          break;
-        }
-      } else {
-        leadingSpace = 0;
-      }
-    }
-
-    inputString = malloc(index + 1);
-    strncpy(inputString, inputBuff, index);
-    inputString[index] = '\0';
-    /* now move inputBuff up */
-    {
-      long a = 0;
-      leadingSpace = 1;
-      /* +1 to include \0 */
-      for(; index < length + 1; ++index) {
-        if(!leadingSpace || isspace(inputBuff[index]) == 0) {
-          leadingSpace = 0;
-          inputBuff[a] = inputBuff[index];
-          ++a;
-        }
-      }
-    }
-  }
-
-  {
-    va_list arglist;
-    int result;
-    va_start(arglist, format);
-    result = vsscanf(inputString, format, arglist);
-    va_end(arglist);
-
-    free(inputString);
-
-    return result;
-  }
-}
-
-
-int getchar_wrap(){
-  /* check if there is still something in the input buffer*/
-  char input = 0;
-  long length = strlen(inputBuff);
-  if(length <= 0) {
-    printf("<inputRequest>");
-    fflush(stdout);
-
-    readIntoBuffer();
-  }
-
-  input = inputBuff[0];
-  {
-    long i = 1;
-    long length = strlen(inputBuff) + 1;
-    /* shift all chars one to the left */
-    for(; i < length; ++i){
-      inputBuff[i-1] = inputBuff[i];
-      if(inputBuff[i] == '\0') {
-        break;
-      }
-    }
-  }
-
-  return input;
-}
-
-/* Replace all the necessary input functions
-  depending on the language version used */
-#ifndef C89_SUPPORT
-/* Need double hashes in case there are no __VA_ARGS__*/
-#define scanf(format, ...) scanf_wrap(format, ##__VA_ARGS__)
-#else /* C89_SUPPORT */
-/* Since there are no variadic macros in C89, this is the only way
-  although it is horrible */
-#define scanf scanf_wrap
-#endif /* C89_SUPPORT */
-
-#define getchar() getchar_wrap()
-
 /* output functions to replicate terminal behaviour */
 #ifdef BUFFERED_OUTPUT
 /* buffer for all output */
@@ -252,12 +117,146 @@ int fclose_wrap(FILE* stream) {
   }
   return fclose(stream);
 }
+#endif /* BUFFERED_OUTPUT */
 
+/* Need input buffer to know whether we need another input request */
+/* TODO allocate this dynamically */
+static char inputBuff[1<<10] = "";
+static long scanf_wrap_number_read = 0;
+
+/* read remaining input into buffer so it can be used in next call */
+void readIntoBuffer() {
+  long length = strlen(inputBuff);
+  char nextChar = 0;
+  while((nextChar = getchar()) != '\n' && nextChar != EOF){
+    inputBuff[length++] = nextChar;
+  }
+  inputBuff[length++] = '\n';
+  inputBuff[length] = '\0';
+}
+
+/* check whether input request is needed */
+char checkInputRequest() {
+  return strlen(inputBuff) <= 0;
+}
+
+/* Define the input functions to overload the old ones */
+/* Wrapping of scanf depends on standard */
+#ifdef C89_SUPPORT
+/* Need to define vscanf for c89.
+  TODO: This is a bit risky, since the underlying glibc does not
+  have to include this if it is old. If it does not, linking will fail.
+  The robust way would be readin via sscanf. */
+
+/* Read formatted input from stdin into argument list ARG.
+
+   This function is a possible cancellation point and therefore not
+   marked with __THROW.  */
+   extern int vsscanf (const char *__restrict __s,
+                       const char *__restrict __format, _G_va_list __arg)
+        __THROW __attribute__ ((__format__ (__scanf__, 2, 0)));
+#endif /* C89_SUPPORT */
+
+int scanf_wrap(const char *format, ...) {
+  char doRequest = checkInputRequest();
+  char *formatString = 0;
+
+  if(doRequest) {
+#ifdef BUFFERED_OUTPUT
+    flush_all_output();
+#endif
+    printf("<inputRequest>");
+    fflush(stdout);
+    /* read everything from stdin into buffer */
+    readIntoBuffer();
+  }
+
+  /* add %n to format string to get number of written chars */
+  {
+    long length = strlen(format);
+    formatString = malloc(length + 3);
+    strcpy(formatString, format);
+    formatString[length] = '%';
+    formatString[length + 1] = 'n';
+    formatString[length + 2] = '\0';
+  }
+
+  {
+    va_list arglist;
+    int result;
+    va_start(arglist, format);
+    result = vsscanf(inputBuff, formatString, arglist);
+    va_end(arglist);
+
+    /* now move inputBuff up or remove for c89 */
+#ifdef C89_SUPPORT
+    inputBuff[0] = '\0';
+#else /* C89_SUPPORT */
+    {
+      const long length = strlen(inputBuff);
+      long index = scanf_wrap_number_read;
+      long a = 0;
+      /* +1 to include \0 */
+      for(; index < length + 1; ++a, ++index) {
+        inputBuff[a] = inputBuff[index];
+      }
+    }
+#endif /* C89_SUPPORT */
+
+    free(formatString);
+    return result;
+  }
+}
+
+int getchar_wrap(){
+  /* check if there is still something in the input buffer*/
+  char input = 0;
+  long length = strlen(inputBuff);
+  if(length <= 0) {
+#ifdef BUFFERED_OUTPUT
+    flush_all_output();
+#endif
+    printf("<inputRequest>");
+    fflush(stdout);
+
+    readIntoBuffer();
+  }
+
+  input = inputBuff[0];
+  {
+    long i = 1;
+    long length = strlen(inputBuff) + 1;
+    /* shift all chars one to the left */
+    for(; i < length; ++i){
+      inputBuff[i-1] = inputBuff[i];
+      if(inputBuff[i] == '\0') {
+        break;
+      }
+    }
+  }
+
+  return input;
+}
+
+/* Replace all the necessary input functions
+  depending on the language version used */
+#ifndef C89_SUPPORT
+/* Need double hashes in case there are no __VA_ARGS__*/
+#define scanf(format, ...) scanf_wrap(format, ##__VA_ARGS__, &scanf_wrap_number_read)
+#else /* C89_SUPPORT */
+/* Since there are no variadic macros in C89, this is the only way
+  although it is horrible */
+#define scanf scanf_wrap
+#endif /* C89_SUPPORT */
+
+#define getchar() getchar_wrap()
+
+/* Output defines */
+#ifdef BUFFERED_OUTPUT
 #define printf printf_wrap
 #define putchar putchar_wrap
 #define fflush fflush_wrap
 #define fclose fclose_wrap
-
 #endif /* BUFFERED_OUTPUT */
 
 /* Replace FILE write operations for read-only systems */
