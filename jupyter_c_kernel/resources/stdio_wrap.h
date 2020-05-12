@@ -137,7 +137,10 @@ void readIntoBuffer() {
 
 /* check whether input request is needed */
 char checkInputRequest() {
-  return strlen(inputBuff) <= 0;
+  const long length = strlen(inputBuff);
+  long i = 0;
+  for(; i < length && isspace(inputBuff[i]); ++i);
+  return i == length;
 }
 
 /* Define the input functions to overload the old ones */
@@ -155,6 +158,35 @@ char checkInputRequest() {
    extern int vsscanf (const char *__restrict __s,
                        const char *__restrict __format, _G_va_list __arg)
         __THROW __attribute__ ((__format__ (__scanf__, 2, 0)));
+
+  /* replace all % with %* to suppress read in and do test run */
+  long find_scanf_length(const char *format) {
+    const long length = strlen(format);
+    /* allow for maximum of 50 format specifiers */
+    char *formatString = malloc(length + 53);
+    long index = 0;
+    long formatIndex = 0;
+    for(; index < length; ++index, ++formatIndex) {
+      formatString[formatIndex] = format[index];
+      if(format[index] == '%' &&
+        (index + 1 < length && format[index + 1] != '%')) {
+        formatString[++formatIndex] = '*';
+      }
+    }
+    /* add number readin */
+    formatString[formatIndex++] = '%';
+    formatString[formatIndex++] = 'n';
+    formatString[formatIndex] = '\0';
+
+    /* now run and record how many characters were read */
+    {
+      int readLength = 0;
+      sscanf(inputBuff, formatString, &readLength);
+      free(formatString);
+
+      return readLength;
+    }
+  }
 #endif /* C89_SUPPORT */
 
 int scanf_wrap(const char *format, ...) {
@@ -173,12 +205,18 @@ int scanf_wrap(const char *format, ...) {
 
   /* add %n to format string to get number of written chars */
   {
-    long length = strlen(format);
+    const long length = strlen(format);
     formatString = malloc(length + 3);
     strcpy(formatString, format);
+#ifndef C89_SUPPORT
     formatString[length] = '%';
     formatString[length + 1] = 'n';
     formatString[length + 2] = '\0';
+#else /* C89_SUPPORT */
+    formatString[length] = '\0';
+    /* In C89 we need to find how far scanf will read, by hand */
+    scanf_wrap_number_read = find_scanf_length(format);
+#endif /* C89_SUPPORT */
   }
 
   {
@@ -188,10 +226,7 @@ int scanf_wrap(const char *format, ...) {
     result = vsscanf(inputBuff, formatString, arglist);
     va_end(arglist);
 
-    /* now move inputBuff up or remove for c89 */
-#ifdef C89_SUPPORT
-    inputBuff[0] = '\0';
-#else /* C89_SUPPORT */
+    /* now move inputBuff up */
     {
       const long length = strlen(inputBuff);
       long index = scanf_wrap_number_read;
@@ -201,7 +236,6 @@ int scanf_wrap(const char *format, ...) {
         inputBuff[a] = inputBuff[index];
       }
     }
-#endif /* C89_SUPPORT */
 
     free(formatString);
     return result;
