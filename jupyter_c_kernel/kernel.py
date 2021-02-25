@@ -106,7 +106,7 @@ class CKernel(Kernel):
         super(CKernel, self).__init__(*args, **kwargs)
         self._allow_stdin = True
         self.readOnlyFileSystem = False
-        self.bufferedOutput = False
+        self.bufferedOutput = True
         self.linkMaths = True # always link math library
         self.wAll = True # show all warnings by default
         self.wError = False # but keep comipiling for warnings
@@ -191,7 +191,10 @@ class CKernel(Kernel):
                     for argument in re.findall(r'(?:[^\s,"]|"(?:\\.|[^"])*")+', value):
                         magics['args'] += [argument.strip('"')]
 
-            # only keep lines which did not contain magics
+                # always add empty line, so line numbers don't change
+                actualCode += '\n'
+
+            # keep lines which did not contain magics
             else:
                 actualCode += line + '\n'
 

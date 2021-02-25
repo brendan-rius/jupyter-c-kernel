@@ -1,12 +1,25 @@
-# Minimal C kernel for Jupyter
+# C kernel for Jupyter
+
+This project was forked from [https://github.com/brendan-rius/jupyter-c-kernel](brendan-rius/jupyter-c-kernel) as that project seems to have been abandoned. (PR is pending)
+
+This project includes fixes to many issues reported in [https://github.com/brendan-rius/jupyter-c-kernel](brendan-rius/jupyter-c-kernel), as well as the following additional features:
+
+* Option for buffered output to mimic command line behaviour (useful for teaching, default is on)
+* Command line input via `scanf` and `getchar`
+* Support for `C89`/`ANSI C` (all newer versions were already supported and still are)
+
+Following limitations compared to command line execution exist:
+
+* Input is always buffered due to limitations of the jupyter interface
+* When using `-ansi` or `-std=C89`, glibc still has to support at least `C99` for the interfacing with jupyter (this should not be an issue on an OS made after 2000)
 
 ## Use with Docker (recommended)
 
- * `docker pull xaverklemenschits/jupyter-c-kernel`
- * `docker run -p 8888:8888 xaverklemenschits/jupyter-c-kernel`
- * Copy the given URL containing the token, and browse to it. For instance:
+* `docker pull xaverklemenschits/jupyter-c-kernel`
+* `docker run -p 8888:8888 xaverklemenschits/jupyter-c-kernel`
+* Copy the given URL containing the token, and browse to it. For instance:
 
- ```
+ ```bash
  Copy/paste this URL into your browser when you connect for the first time,
  to login with a token:
     http://localhost:8888/?token=66750c80bd0788f6ba15760aadz53beb9a9fb4cf8ac15ce8
@@ -16,14 +29,14 @@
 
 Works only on Linux and OS X. Windows is not supported yet. If you want to use this project on Windows, please use Docker.
 
-
- * Make sure you have the following requirements installed:
+* Make sure you have the following requirements installed:
   * gcc
   * jupyter
   * python 3
   * pip
 
-### Step-by-step:
+### Step-by-step
+
 ```bash
 git clone https://github.com/XaverKlemenschits/jupyter-c-kernel.git
 cd jupyter-c-kernel
