@@ -180,7 +180,12 @@ class CKernel(Kernel):
 
         for line in code.splitlines():
             if line.startswith('//%'):
-                key, value = line[3:].split(":", 2)
+                magicSplit = line[3:].split(":", 2)
+                if(len(magicSplit) < 2):
+                    self._write_to_stderr("[C kernel] Magic line starting with '//%' is missing a semicolon, ignoring.")
+                    continue
+
+                key, value = magicSplit
                 key = key.strip().lower()
 
                 if key in ['ldflags', 'cflags']:
