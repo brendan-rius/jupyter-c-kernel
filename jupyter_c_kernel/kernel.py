@@ -110,6 +110,7 @@ class CKernel(Kernel):
         self.linkMaths = True # always link math library
         self.wAll = True # show all warnings by default
         self.wError = False # but keep comipiling for warnings
+        self.standard = "c11" # default standard if none is specified
         self.files = []
         mastertemp = tempfile.mkstemp(suffix='.out')
         os.close(mastertemp[0])
@@ -152,11 +153,7 @@ class CKernel(Kernel):
                                   self._read_from_stdin)
 
     def compile_with_gcc(self, source_filename, binary_filename, cflags=None, ldflags=None):
-        # cflags = ['-std=c89', '-pedantic', '-fPIC', '-shared', '-rdynamic'] + cflags
-        # cflags = ['-std=c99', '-Wdeclaration-after-statement', '-Wvla', '-fPIC', '-shared', '-rdynamic'] + cflags
-        # cflags = ['-std=iso9899:199409', '-pedantic', '-fPIC', '-shared', '-rdynamic'] + cflags
-        # cflags = ['-std=c99', '-pedantic', '-fPIC', '-shared', '-rdynamic'] + cflags
-        cflags = ['-std=c11', '-pedantic', '-fPIC', '-shared', '-rdynamic'] + cflags
+        cflags = ['-pedantic', '-fPIC', '-shared', '-rdynamic'] + cflags
         if self.linkMaths:
             cflags = cflags + ['-lm']
         if self.wError:
@@ -202,6 +199,10 @@ class CKernel(Kernel):
             # keep lines which did not contain magics
             else:
                 actualCode += line + '\n'
+
+        # add default standard if cflags does not contain one
+        if not any(item.startswith('-std=') for item in magics["cflags"]):
+            magics["cflags"] += ["-std=" + self.standard]
 
         return magics, actualCode
 
