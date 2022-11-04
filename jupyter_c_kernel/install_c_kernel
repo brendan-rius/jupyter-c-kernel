@@ -10,7 +10,7 @@ from IPython.utils.tempdir import TemporaryDirectory
 
 kernel_json = {
     "argv": [
-        "python3",
+        sys.executable,
         "-m",
         "jupyter_c_kernel",
         "-f",
